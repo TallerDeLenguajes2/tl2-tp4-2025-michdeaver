@@ -62,7 +62,7 @@ public class AccesoADatosCSV : IAccessoADatos
 
 public class AccesoADatosJSON : IAccessoADatos
 {
-    public List<Pedido> CargarPedidos(string archivo)
+        public List<Pedido> CargarPedidos(string archivo)
     {
         if (!File.Exists(archivo)) return new List<Pedido>();
 
