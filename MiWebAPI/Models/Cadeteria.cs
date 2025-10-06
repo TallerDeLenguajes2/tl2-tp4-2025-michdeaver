@@ -1,11 +1,15 @@
 using System.Globalization;
+using System.Reflection.Metadata.Ecma335;
+using System.Text;
 
 public class Cadeteria
 {
     public string? Nombre { get; private set; }
     public int Telefono { get; private set; }
-    public List<Cadete> ListadoCadetes { get; private set; } = new List<Cadete>();
-    public List<Pedido> ListadoPedidos { get; private set; } = new List<Pedido>();
+
+    // Lists now come from Data Access Layer
+    private List<Cadete> ListadoCadetes { get; set; } = new();
+    private List<Pedido> ListadoPedidos { get; set; } = new();
 
 
     public Cadeteria(string? nombre, int telefono)
@@ -14,111 +18,102 @@ public class Cadeteria
         this.Telefono = telefono;
     }
 
-    // encapsulated set 
-    public void CargarListadoPedidos(List<Pedido> Pedidos)
-    {
-        ListadoPedidos = Pedidos;
+    // Methods to inject data from JSON
+    public void AgregarListaCadetes(List<Cadete> cadetes) => ListadoCadetes = cadetes;
+    public void AgregarListaPedidos(List<Pedido> pedidos) => ListadoPedidos = pedidos;
 
-    }
-    public void CargarListadoCadetes(List<Cadete> Cadetes){
-        ListadoCadetes = Cadetes;
-    }
+    public List<Cadete> ObtenerCadetes() => ListadoCadetes;
+    public List<Pedido> ObtenerPedidos() => ListadoPedidos;
+
+    // Safe getters
+    public Cadete? GetCadete(int idCadete) => ListadoCadetes.FirstOrDefault(c => c.Id == idCadete);
+    public Pedido? GetPedido(int idPedido) => ListadoPedidos.FirstOrDefault(p => p.Nro == idPedido);
+
 
     // no need for method reasignar, asignarCadete functions for both. 
-    public void AsignarCadeteAPedidos()
+    public void AsignarCadeteAPedidos(Pedido pedido, Cadete cadete)
     {
-        Console.Write("Ingrese ID de cadete: ");
-        int.TryParse(Console.ReadLine(), out int idCadete);
-
-        Console.Write("Ingrese ID de pedido: ");
-        int.TryParse(Console.ReadLine(), out int idPedido);
-
-        //first go through each list to identifty respective cadete and pedido
-        var cadete = ListadoCadetes.FirstOrDefault(c => c.Id == idCadete);
-        var pedido = ListadoPedidos.FirstOrDefault(p => p.Nro == idPedido);
-        //access is set private, needs function for capsulation.
-        if (cadete == null || pedido == null)
+        if (cadete != null && pedido != null)
         {
-            Console.WriteLine("No se pudo asignar cadete a pedido. Entrada Nulo");
+            pedido.SetCadete(cadete);
         }
-        else pedido.SetCadete(cadete);
     }
 
-    public float JornalACobrar(int id)
+    public float JornalACobrar(int idCadete)
     {
-        var cadete = ListadoCadetes.FirstOrDefault(c => c.Id == id);
+        var cadete = GetCadete(idCadete);
+        if (cadete == null) return 0;
         var cantPedidos = ListadoPedidos.Count(p => p.Cadete == cadete);
         float costoPorPedido = 800;
-        float sueldo = cantPedidos * costoPorPedido;
-        return sueldo;
+        return cantPedidos * costoPorPedido;
     }
 
-    // Cadeteria doesn't care how the data is loaded
-    // AccesoADatosCSV or AccesoADatosJSON will implement the steps requires for each case
-
-    public void MostrarCadetes()
+    public string? MostrarCadetes()
     {
-        Console.WriteLine("Cargando Lista de Cadetes...");
-        Console.WriteLine("-----------");
+        StringBuilder mostrar = new StringBuilder();
         foreach (var cadete in ListadoCadetes)
         {
-            Console.WriteLine($"Cadete Id: {cadete.Id} - Nombre: {cadete.Nombre} - Direccion: {cadete.Direccion} - Telefono: {cadete.Telefono}");
-            Console.WriteLine("-----------");
+            mostrar.Append($"Cadete Id: {cadete.Id} - Nombre: {cadete.Nombre} - Direccion: {cadete.Direccion} - Telefono: {cadete.Telefono}");
+            mostrar.Append("\n-----------\n");
         }
+        return mostrar.ToString();
     }
 
-    public void MostrarPedidos()
+    public string? MostrarPedidos()
     {
-        Console.WriteLine("Cargando Lista de Pedidos...");
-        Console.WriteLine("- - -");
+        StringBuilder mostrar = new StringBuilder();
         foreach (var pedido in ListadoPedidos)
         {
-            Console.WriteLine($"Pedido #{pedido.Nro} - Obs: {pedido.Obs} - Estado: {pedido.Estado}");
-            pedido.VerDatosCliente();
-            pedido.VerDireccionCliente();
+            mostrar.Append($"Pedido #{pedido.Nro} - Obs: {pedido.Obs} - Estado: {pedido.Estado}");
+            mostrar.Append(pedido.VerDatosCliente());
+            mostrar.Append(pedido.VerDireccionCliente());
             if (pedido.Cadete != null)
             {
-                Console.WriteLine($"Cadete #{pedido.Cadete.Id} - Nombre: {pedido.Cadete.Nombre}");
+                mostrar.Append($"Cadete #{pedido.Cadete.Id} - Nombre: {pedido.Cadete.Nombre}");
             }
-            else Console.WriteLine("No asignado");
+            else mostrar.Append("No asignado");
 
-            Console.WriteLine("- - -");
+            mostrar.Append("- - -");
         }
+        return mostrar.ToString();
     }
-    public void MostrarCadeteria()
-    {
-        Console.WriteLine($"Cadeteria: {Nombre}, Telefono: {Telefono}");
-    }
+     public string? MostrarCadeteria() => $"Cadeteria: {Nombre}, Telefono: {Telefono}";
 
-    public void Informe()
+    // Structured data for API
+    public object Informe()
     {
-        Console.WriteLine("\n=== Informe de Jornada ===\n");
-
         int totalPedidos = 0;
         float totalGanado = 0;
 
-        foreach (var cadete in ListadoCadetes)
+        var cadetesInfo = ListadoCadetes.Select(c =>
         {
-            var cantPedidos = ListadoPedidos.Count(p => p.Cadete == cadete);
-            float jornal = JornalACobrar(cadete.Id);
+            int cantPedidos = ListadoPedidos.Count(p => p.Cadete == c);
+            float jornal = JornalACobrar(c.Id);
 
-            Console.WriteLine($"Cadete: {cadete.Nombre}");
-            Console.WriteLine($"  Envíos realizados: {cantPedidos}");
-            Console.WriteLine($"  Jornal ganado: ${jornal}\n");
-            // adding up pedidos and total jornal while moving through list
             totalPedidos += cantPedidos;
             totalGanado += jornal;
-        }
 
-        int cantidadCadetes = ListadoCadetes.Count();
-        //checks if cantidad de cadetes is empty before calculating promedio
-        var promedioEnvios = cantidadCadetes > 0 ? (float)totalPedidos / cantidadCadetes : 0;
+            return new
+            {
+                c.Id,
+                c.Nombre,
+                EnvíosRealizados = cantPedidos,
+                Jornal = jornal
+            };
+        }).ToList();
 
-        Console.WriteLine("=== Totales ===");
-        Console.WriteLine($"Total de envíos: {totalPedidos}");
-        Console.WriteLine($"Total ganado por todos los cadetes: ${totalGanado}");
-        Console.WriteLine($"Promedio de envíos por cadete: {promedioEnvios:F2}");
+        float promedioEnvios = ListadoCadetes.Count > 0 ? (float)totalPedidos / ListadoCadetes.Count : 0;
+
+        return new
+        {
+            Cadetes = cadetesInfo,
+            Totales = new
+            {
+                TotalPedidos = totalPedidos,
+                TotalGanado = totalGanado,
+                PromedioEnvios = promedioEnvios
+            }
+        };
     }
-    
     
 }

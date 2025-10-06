@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 public class Cliente
 {
     // change to private later
@@ -15,8 +17,9 @@ public class Cliente
         this.Telefono = Telefono;
         this.DatosReferenciaDireccion = DatosReferenciaDireccion;
     }
-    public void MostrarCliente()
+    public string? MostrarCliente()
     {
-        Console.WriteLine ($"Nombre: {Nombre}, Dirección: {Direccion}, Teléfono: {Telefono}");
+        string? mostrar = ($"Nombre: {Nombre}, Dirección: {Direccion}, Teléfono: {Telefono}");
+        return mostrar;
     }
 }

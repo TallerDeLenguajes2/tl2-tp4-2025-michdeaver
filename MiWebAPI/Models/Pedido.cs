@@ -1,3 +1,4 @@
+using System.Text;
 public class Pedido
 {
     public int Nro { get; private set; }
@@ -24,13 +25,15 @@ public class Pedido
         Cadete = cadete;
     }
 
-    public void VerDireccionCliente()
+    public string? VerDireccionCliente()
     {
-        Console.WriteLine($"Direccion: {Cliente.Direccion ?? "Sin dirección"}");
+        StringBuilder mostrar = new StringBuilder();
+        mostrar.Append($"Direccion: {Cliente.Direccion ?? "Sin dirección"}");
+        return mostrar.ToString();
     }
-    public void VerDatosCliente()
+    public string? VerDatosCliente()
     {
-        Cliente.MostrarCliente();
+        return Cliente.MostrarCliente();
     }
     public void MostrarPedido()
     {
